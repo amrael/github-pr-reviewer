@@ -1,0 +1,20 @@
+# 認証情報
+.env
+
+# Claude Code ローカル設定
+.claude/
+
+# launchd (ユーザー固有パスを含む)
+com.github-pr-reviewer.plist
+
+# OS
+.DS_Store
+
+# Node
+node_modules/
+
+# ログ
+logs/
+
+# Temp
+*.log

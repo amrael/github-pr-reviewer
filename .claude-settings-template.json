@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "askBeforeRunningTool": false,
+  "bypassPermissionsConfirmed": true,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Search",
+      "Edit",
+      "Write",
+      "Bash"
+    ]
+  }
+}

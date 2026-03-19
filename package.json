@@ -1,0 +1,14 @@
+{
+  "name": "github-pr-reviewer",
+  "version": "2.0.0",
+  "private": true,
+  "description": "GitHub PR auto-reviewer using local Claude Code CLI, triggered by @ClaudeReview webhook",
+  "main": "webhook-server.js",
+  "scripts": {
+    "start": "node webhook-server.js",
+    "health": "curl -s http://localhost:${PORT:-3456}/health | jq ."
+  },
+  "dependencies": {
+    "smee-client": "^2.0.4"
+  }
+}
