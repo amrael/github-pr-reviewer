@@ -18,11 +18,12 @@ function init(config, logger, github, notifier) {
 
 function runClaude(prompt, cloneDir, prNumber) {
   const promptFile = `/tmp/pr-review-prompt-${prNumber}.txt`;
+  const stderrFile = `/tmp/pr-review-stderr-${prNumber}.txt`;
   fs.writeFileSync(promptFile, prompt, 'utf8');
 
   try {
     const stdout = execSync(
-      `"${_config.CLAUDE_PATH}" -p "$(cat '${promptFile}')" --permission-mode bypassPermissions`,
+      `"${_config.CLAUDE_PATH}" -p "$(cat '${promptFile}')" --dangerously-skip-permissions 2>"${stderrFile}"`,
       {
         cwd: cloneDir,
         encoding: 'utf8',
@@ -34,10 +35,19 @@ function runClaude(prompt, cloneDir, prNumber) {
         timeout: 600000, // 10 minutes
       }
     );
-    return stdout;
+    return { stdout, stderr: readStderr(stderrFile) };
+  } catch (e) {
+    const stderr = readStderr(stderrFile);
+    e.stderr = stderr;
+    throw e;
   } finally {
     try { fs.unlinkSync(promptFile); } catch (_) {}
+    try { fs.unlinkSync(stderrFile); } catch (_) {}
   }
+}
+
+function readStderr(filepath) {
+  try { return fs.readFileSync(filepath, 'utf8'); } catch (_) { return ''; }
 }
 
 async function runReview(repo, prNumber, commentId) {
@@ -92,15 +102,30 @@ You MUST use the **merge-base** approach to get only the changes introduced by t
 4. Identify issues by severity: CRITICAL, HIGH, MEDIUM, LOW.
 5. Provide a structured review starting with "# Code Review: PR #${prNumber}" and ending with a summary table.`;
 
-    // 5. Run Claude Code CLI
+    // 5. Run Claude Code CLI (with 1 retry on empty output)
     log.info('Running Claude Code CLI');
-    let reviewBody = runClaude(reviewPrompt, cloneDir, prNumber);
+    let reviewBody = '';
+    const maxAttempts = 2;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const result = runClaude(reviewPrompt, cloneDir, prNumber);
+      reviewBody = result.stdout
+        .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
+        .replace(/\r/g, '');
 
-    // Strip ANSI escape codes
-    reviewBody = reviewBody.replace(/\x1b\[[0-9;]*m/g, '').replace(/\r/g, '');
+      if (reviewBody.trim()) break;
 
-    if (!reviewBody.trim()) {
-      throw new Error('Claude returned empty output');
+      if (attempt < maxAttempts) {
+        log.warn('Claude returned empty output, retrying', {
+          attempt,
+          stderrSnippet: result.stderr.slice(0, 500),
+        });
+      } else {
+        const stderrSnippet = result.stderr.slice(0, 500);
+        throw new Error(
+          `Claude returned empty output after ${maxAttempts} attempts` +
+          (stderrSnippet ? `\nstderr: ${stderrSnippet}` : '')
+        );
+      }
     }
     log.info('Claude review complete', { outputLength: reviewBody.length });
 
