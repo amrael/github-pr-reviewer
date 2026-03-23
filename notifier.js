@@ -19,7 +19,7 @@ function sendSignal(message) {
   try {
     const result = spawnSync(_config.OPENCLAW_BIN, [
       'message', 'send',
-      '--channel', 'signal',
+      '--channel', 'telegram',
       '--target', _config.SIGNAL_RECIPIENT,
       '--message', message,
     ], { encoding: 'utf8', timeout: 30000 });

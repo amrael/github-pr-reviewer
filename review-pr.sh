@@ -155,17 +155,24 @@ prepare_pr() {
   fi
   
   mkdir -p "$TEMP_BASE"
-  gh repo clone "$repo" "$clone_dir" -- --depth 1
-  
+  gh repo clone "$repo" "$clone_dir" -- --filter=blob:none
+
   cd "$clone_dir"
-  
+
   # Get PR branch name
   local branch
   branch=$(gh pr view "$pr" --json headRefName --jq '.headRefName')
-  
+
   info "Checking out PR branch: $branch"
-  git fetch origin "$branch" --depth 1
+  git fetch origin "$branch"
   git checkout -b review-branch FETCH_HEAD
+
+  # Ensure merge-base with master is available
+  git fetch origin master
+  if ! git merge-base origin/master HEAD >/dev/null 2>&1; then
+    warn "merge-base not found, fetching full history"
+    git fetch --unshallow origin
+  fi
   
   success "PR #$pr ready at: $clone_dir"
   echo "$clone_dir"
