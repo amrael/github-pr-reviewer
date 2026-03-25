@@ -22,12 +22,23 @@ function sendSignal(message) {
       '--channel', 'telegram',
       '--target', _config.SIGNAL_RECIPIENT,
       '--message', message,
-    ], { encoding: 'utf8', timeout: 30000 });
+    ], {
+      encoding: 'utf8',
+      timeout: 30000,
+      env: {
+        ...process.env,
+        PATH: `/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
+      },
+    });
 
     if (result.status !== 0) {
-      _logger.warn('Signal send failed', { stderr: (result.stderr || '').slice(0, 500) });
+      _logger.warn('Notification send failed', {
+        stderr: (result.stderr || '').slice(0, 500),
+        status: result.status,
+      });
       return false;
     }
+    _logger.info('Notification sent', { stdout: (result.stdout || '').slice(0, 200) });
     return true;
   } catch (e) {
     _logger.warn('Signal send error', { error: e.message });
